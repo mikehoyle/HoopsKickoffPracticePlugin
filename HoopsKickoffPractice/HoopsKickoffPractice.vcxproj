@@ -82,9 +82,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>bakkesmod.lib;pluginsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>$(BAKKESMODSDK)\bakkesmod-patch.exe "$(TargetPath)"</Command>
+      <Command>$(BakkesModPath)bakkesmodsdk\bakkesmod-patch.exe "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
