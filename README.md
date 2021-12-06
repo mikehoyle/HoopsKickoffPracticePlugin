@@ -3,7 +3,7 @@ A BakkesMod plugin to help with practicing hoops kickoffs.
 # Usage
 
 Plugin adds two simple features when loading a local Hoops session:
-1. In freeplay, all won't do kickoff motion until you move your car
+1. In freeplay, ball won't do kickoff motion until you move your car
 2. Disables spawn location randomization and spawn can be controlled via GUI (F2 -> Plugins -> Hoops Kickoff Practice to open, or F6 -> togglemenu hoopskickoffpractice)
 
 These features work with multiple players in any local session, including those hosted via Rocket Plugin.

@@ -116,7 +116,7 @@ void HoopsKickoffPractice::checkCarMoved(std::string eventName)
 {
 	auto server = getGameServerChecked(false);
 	if (server.IsNull()) {
-		gameWrapper->UnhookEventPost("Function GameEvent_Soccar_TA.Active.Tick");
+		gameWrapper->UnhookEventPost(game_tick_event);
 		return;
 	}
 
@@ -301,14 +301,14 @@ ServerWrapper HoopsKickoffPractice::getGameServerChecked(bool checkIsHoops) {
 // Returns false if the swap failed.
 void HoopsKickoffPractice::swapBySpawns(SpawnName x, SpawnName y)
 {
-
 	// There's probably a better way but my brain hurts rn
 	auto it1 = spawnToPlayerData.find(x);
 	auto it2 = spawnToPlayerData.find(y);
 
 	if (it1 == spawnToPlayerData.end() && it2 == spawnToPlayerData.end()) {
 		return;
-	} else if (it1 == spawnToPlayerData.end()) {
+	}
+	else if (it1 == spawnToPlayerData.end()) {
 		playerToSpawn[it2->second.playerID] = x;
 		spawnToPlayerData[x] = it2->second;
 		spawnToPlayerData.erase(y);
