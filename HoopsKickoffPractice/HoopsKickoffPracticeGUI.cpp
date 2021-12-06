@@ -32,8 +32,9 @@ void HoopsKickoffPractice::Render()
 		return;
 	}
 
-	if (!gameWrapper->IsInFreeplay()) {
-		displayError("Must be in freeplay");
+	auto server = getGameServerChecked();
+	if (server.IsNull()) {
+		displayError("Must be in freeplay or local hoops game");
 	}
 	else {
 		auto server = gameWrapper->GetGameEventAsServer();
@@ -47,7 +48,7 @@ void HoopsKickoffPractice::Render()
 			}
 			else {
 				ImGui::TextWrapped("Drag a player's name into another location to change their spawn location");
-				ImGui::TextWrapped("Choose Hoops as the game mode when creating a hoops freeplay session in Rocket Plugin");
+				ImGui::TextWrapped("Choose Hoops as the game mode when creating a hoops session in Rocket Plugin");
 
 				// Players should already be assigned to positions
 				ImGuiDragDropFlags src_drag_flags = 0;// | ImGuiDragDropFlags_SourceNoDisableHover | ImGuiDragDropFlags_SourceNoHoldToOpenOthers | ImGuiDragDropFlags_SourceNoPreviewTooltip;
@@ -109,6 +110,21 @@ void HoopsKickoffPractice::Render()
 
 					ImGui::PopStyleColor();
 					ImGui::PopStyleColor();
+				}
+				if (!gameWrapper->IsInFreeplay()) {
+					// When not in freeplay, give an easy way to reset game
+					ImGui::Columns(1);
+					ImGui::Separator();
+					ImGui::SetCursorPosX(
+						(ImGui::GetWindowWidth() / 2) -
+						(ImGui::CalcTextSize(kickoff_btn_txt.c_str()).x / 2) -
+						ImGui::GetStyle().FramePadding.x);
+					if (ImGui::Button(kickoff_btn_txt.c_str())) {
+						gameWrapper->Execute(
+							[this](GameWrapper*) {
+								resetGame();
+							});
+					}
 				}
 			}
 		}
