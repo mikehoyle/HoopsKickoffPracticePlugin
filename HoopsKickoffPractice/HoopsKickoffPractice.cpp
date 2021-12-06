@@ -92,7 +92,7 @@ void HoopsKickoffPractice::onBallAdded(std::string eventName)
 		if (!car.IsNull()) {
 			auto pri = car.GetPRI();
 			if (!pri.IsNull()) {
-				SpawnName spawn = playerToSpawn[GetUniqueID(pri)];
+				SpawnName spawn = playerToSpawn[GetUniqueID(car.GetPRI())];
 				SpawnPoint point = spawnNameToPoint[spawn];
 				car.Teleport(point.location, point.rotation, 0, 0, 0);
 			}
