@@ -1,4 +1,4 @@
-// TODO: Freeze players until host moves? Or just add a countdown? Still need to figure this out for team training plugin...
+// TODO: More cleanly handle swapping to opposite-team kickoff positions in local games
 // TODO: Dpad to cycle spawns when car is still in spawn
 // TODO: Add a bot for buddy kickoff
 
@@ -42,23 +42,13 @@ void HoopsKickoffPractice::onUnload()
 
 void HoopsKickoffPractice::onFreeplayStarted(std::string eventName)
 {
-	if (!gameWrapper->IsInFreeplay()) {
-		return;
-	}
-
-	auto server = gameWrapper->GetGameEventAsServer();
-	if (server.IsNull()) {
-		cvarManager->log("Server is null");
-		return;
-	}
-
-	if (!isHoops(server)) {
+	if (getGameServerChecked().IsNull()) {
 		return;
 	}
 
 	gameWrapper->UnhookEventPost(freeplay_started_event);
 
-	gameWrapper->HookEventPost(ball_added_event,
+	gameWrapper->HookEventPost(round_start_event,
 		std::bind(&HoopsKickoffPractice::onBallAdded, this, std::placeholders::_1));
 	gameWrapper->HookEventPost(ball_lift_added_event,
 		std::bind(&HoopsKickoffPractice::onBallLiftAdded, this, std::placeholders::_1));
@@ -69,7 +59,7 @@ void HoopsKickoffPractice::onFreeplayEnded(std::string eventName)
 	gameWrapper->HookEventPost(freeplay_started_event,
 		std::bind(&HoopsKickoffPractice::onFreeplayStarted, this, std::placeholders::_1));
 
-	gameWrapper->UnhookEventPost(ball_added_event);
+	gameWrapper->UnhookEventPost(round_start_event);
 	gameWrapper->UnhookEventPost(movement_check_event);
 	gameWrapper->UnhookEventPost(ball_lift_added_event);
 }
@@ -77,36 +67,21 @@ void HoopsKickoffPractice::onFreeplayEnded(std::string eventName)
 void HoopsKickoffPractice::onStop()
 {
 	gameWrapper->UnhookEventPost(movement_check_event);
-	gameWrapper->UnhookEventPost(ball_added_event);
+	gameWrapper->UnhookEventPost(round_start_event);
 }
 
 void HoopsKickoffPractice::onBallAdded(std::string eventName)
 {
 	ballLiftAdded = false;
 
-	if (!gameWrapper->IsInFreeplay()) {
-		return;
-	}
-
-	auto server = gameWrapper->GetGameEventAsServer();
-	if (server.IsNull()) {
-		return;
-	}
-
-	if (!isHoops(server)) {
-		return;
-	}
-
+	auto server = getGameServerChecked();
 	auto ball = server.GetBall();
 	if (ball.IsNull()) {
 		return;
 	}
 
 	auto cars = server.GetCars();
-	if (cars.IsNull()) {
-		return;
-	}
-	if (cars.Count() == 0) {
+	if (cars.IsNull() || cars.Count() == 0) {
 		return;
 	}
 
@@ -117,7 +92,7 @@ void HoopsKickoffPractice::onBallAdded(std::string eventName)
 		if (!car.IsNull()) {
 			auto pri = car.GetPRI();
 			if (!pri.IsNull()) {
-				SpawnName spawn = playerToSpawn[GetUniqueID(pri)];
+				SpawnName spawn = playerToSpawn[GetUniqueID(car.GetPRI())];
 				SpawnPoint point = spawnNameToPoint[spawn];
 				car.Teleport(point.location, point.rotation, 0, 0, 0);
 			}
@@ -125,9 +100,9 @@ void HoopsKickoffPractice::onBallAdded(std::string eventName)
 	}
 
 	// If ball was set by the game event, the game will provide the velocity if the player is currently providing input
-	if (eventName.size() == 0 || !carHasInput(cars)) {
+	if (gameWrapper->IsInFreeplay() && (eventName.size() == 0 || !carHasInput(cars))) {
 		delaySet = false;
-		gameWrapper->HookEventPost("Function GameEvent_Soccar_TA.Active.Tick",
+		gameWrapper->HookEventPost(game_tick_event,
 			std::bind(&HoopsKickoffPractice::checkCarMoved, this, std::placeholders::_1));
 	}
 }
@@ -139,13 +114,9 @@ void HoopsKickoffPractice::onBallLiftAdded(std::string eventName)
 
 void HoopsKickoffPractice::checkCarMoved(std::string eventName)
 {
-	if (!gameWrapper->IsInFreeplay()) {
-		gameWrapper->UnhookEventPost("Function GameEvent_Soccar_TA.Active.Tick");
-		return;
-	}
-
-	auto server = gameWrapper->GetGameEventAsServer();
+	auto server = getGameServerChecked(false);
 	if (server.IsNull()) {
+		gameWrapper->UnhookEventPost("Function GameEvent_Soccar_TA.Active.Tick");
 		return;
 	}
 
@@ -177,19 +148,7 @@ void HoopsKickoffPractice::checkCarMoved(std::string eventName)
 					return;
 				}
 				delaySet = false;
-
-				if (!gameWrapper->IsInFreeplay()) {
-					return;
-				}
-
-				auto server = gw->GetGameEventAsServer();
-				if (server.IsNull()) {
-					return;
-				}
-
-				if (!isHoops(server)) {
-					return;
-				}
+				auto server = getGameServerChecked();
 
 				auto ball = server.GetBall();
 				if (ball.IsNull()) {
@@ -322,16 +281,34 @@ void HoopsKickoffPractice::assignSpawnLocations(ArrayWrapper<CarWrapper> cars)
 	}
 }
 
+ServerWrapper HoopsKickoffPractice::getGameServerChecked(bool checkIsHoops) {
+	if (gameWrapper->IsInOnlineGame() || !gameWrapper->IsInGame()) {
+		return ServerWrapper(0);
+	}
+
+	auto server = gameWrapper->GetGameEventAsServer();
+	if (server.IsNull()) {
+		return server;
+	}
+	
+	if (checkIsHoops && !isHoops(server)) {
+		return ServerWrapper(0);
+	}
+
+	return server;
+}
+
+// Returns false if the swap failed.
 void HoopsKickoffPractice::swapBySpawns(SpawnName x, SpawnName y)
 {
+
 	// There's probably a better way but my brain hurts rn
 	auto it1 = spawnToPlayerData.find(x);
 	auto it2 = spawnToPlayerData.find(y);
 
 	if (it1 == spawnToPlayerData.end() && it2 == spawnToPlayerData.end()) {
 		return;
-	}
-	else if (it1 == spawnToPlayerData.end()) {
+	} else if (it1 == spawnToPlayerData.end()) {
 		playerToSpawn[it2->second.playerID] = x;
 		spawnToPlayerData[x] = it2->second;
 		spawnToPlayerData.erase(y);
@@ -349,4 +326,10 @@ void HoopsKickoffPractice::swapBySpawns(SpawnName x, SpawnName y)
 		PlayerData& item2 = it2->second;
 		std::swap(item1, item2);
 	}
+
+	return;
+}
+
+void HoopsKickoffPractice::resetGame() {
+	getGameServerChecked(false).StartNewRound();
 }

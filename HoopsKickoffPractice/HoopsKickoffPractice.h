@@ -7,17 +7,19 @@
 
 #include <unordered_map>
 
-constexpr auto plugin_version = "0.3";
+constexpr auto plugin_version = "0.4";
 constexpr auto kickoff_delay = 0.15f;
 constexpr auto location_epsilon = 0.01f;
 constexpr auto num_spawns = 10;
 constexpr auto unassigned_loc_btn_txt = "Unassigned";
+const std::string kickoff_btn_txt = "Kickoff!";
 
 constexpr auto freeplay_started_event = "Function GameEvent_Soccar_TA.Active.StartRound";
 constexpr auto freeplay_ended_event = "Function TAGame.GameEvent_Soccar_TA.Destroyed";
-constexpr auto ball_added_event = "Function TAGame.GameEvent_TA.StartEvent";
+constexpr auto round_start_event = "Function TAGame.GameEvent_TA.ResetPlayers";
 constexpr auto movement_check_event = "Function TAGame.Car_TA.SetVehicleInput";
 constexpr auto ball_lift_added_event = "Function TAGame.Mutator_Ball_TA.ApplyBallLift";
+constexpr auto game_tick_event = "Function GameEvent_Soccar_TA.Active.Tick";
 
 enum SpawnName { blue_left, blue_mid_left, blue_mid, blue_mid_right, blue_right,
 				 orange_left, orange_mid_left, orange_mid, orange_mid_right, orange_right };
@@ -50,13 +52,14 @@ class HoopsKickoffPractice : public BakkesMod::Plugin::BakkesModPlugin, public B
 	void checkCarMoved(std::string eventName);
 	void setKickoff(std::vector<std::string> params);
 	void swapBySpawns(SpawnName x, SpawnName y);
-
+	void resetGame();
 	float hoopsVelocity = -1580;
 
 private:
 	bool carHasInput(ArrayWrapper<CarWrapper> cars);
 	bool isHoops(ServerWrapper server);
 	void assignSpawnLocations(ArrayWrapper<CarWrapper> cars);
+	ServerWrapper getGameServerChecked(bool checkIsHoops = true);
 
 	bool delaySet;
 	bool ballLiftAdded;
